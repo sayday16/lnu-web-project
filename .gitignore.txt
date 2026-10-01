@@ -1,0 +1,7 @@
+# Тимчасові файли бекенду
+backend/.vs/
+backend/bin/
+backend/obj/
+
+# Важкі залежності фронтенду
+frontend/node_modules/
