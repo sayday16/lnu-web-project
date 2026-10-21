@@ -1,5 +1,6 @@
 using LNU_Web.Data;
 using LNU_Web.Models;
+using LNU_Web.Options;
 using LNU_Web.Services;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -27,6 +28,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<TokenService>();
 
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+
+builder.Services.Configure<JobLimitsOptions>(builder.Configuration.GetSection(JobLimitsOptions.SectionName));
+builder.Services.AddSingleton<JobQueue>();
+builder.Services.AddSingleton<GaussSolver>();
+builder.Services.AddHostedService<JobWorker>();
 
 builder.Services.AddControllers();
 
