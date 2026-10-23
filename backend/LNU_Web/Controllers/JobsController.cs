@@ -26,6 +26,20 @@ namespace LNU_Web.Controllers
             _limits = limits.Value;
         }
 
+        [HttpGet]
+        public async Task<IActionResult> List()
+        {
+            var userId = GetUserId();
+            var jobs = await _db.Jobs
+                .AsNoTracking()
+                .Where(j => j.UserId == userId)
+                .OrderByDescending(j => j.CreatedAt)
+                .Take(_limits.MaxStoredJobsPerUser)
+                .ToListAsync();
+
+            return Ok(jobs.Select(JobResponse.From));
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create(CreateJobRequest request)
         {
@@ -37,10 +51,22 @@ namespace LNU_Web.Controllers
                 });
             }
 
+            var userId = GetUserId();
+            var activeJobs = await _db.Jobs.CountAsync(j =>
+                j.UserId == userId && (j.Status == JobStatus.Pending || j.Status == JobStatus.Running));
+
+            if (activeJobs >= _limits.MaxActiveJobsPerUser)
+            {
+                return Conflict(new
+                {
+                    message = $"You can have at most {_limits.MaxActiveJobsPerUser} active jobs. Wait for one to finish or cancel it."
+                });
+            }
+
             var job = new Job
             {
                 Id = Guid.NewGuid(),
-                UserId = GetUserId(),
+                UserId = userId,
                 Size = request.Size,
                 Seed = request.Seed ?? Random.Shared.Next(),
                 Status = JobStatus.Pending,
@@ -54,23 +80,49 @@ namespace LNU_Web.Controllers
 
             _queue.Enqueue(job.Id);
 
+            await RemoveOldJobsAsync(userId);
+
             return AcceptedAtAction(nameof(Get), new { id = job.Id }, JobResponse.From(job));
         }
 
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> Get(Guid id)
         {
-            var userId = GetUserId();
-            var job = await _db.Jobs
-                .AsNoTracking()
-                .FirstOrDefaultAsync(j => j.Id == id && j.UserId == userId);
-
+            var job = await FindOwnJobAsync(id);
             if (job == null)
             {
                 return NotFound();
             }
 
             return Ok(JobResponse.From(job));
+        }
+
+        private async Task RemoveOldJobsAsync(int userId)
+        {
+            var oldJobIds = await _db.Jobs
+                .Where(j => j.UserId == userId)
+                .OrderByDescending(j => j.CreatedAt)
+                .Skip(_limits.MaxStoredJobsPerUser)
+                .Where(j => j.Status != JobStatus.Pending && j.Status != JobStatus.Running)
+                .Select(j => j.Id)
+                .ToListAsync();
+
+            if (oldJobIds.Count == 0)
+            {
+                return;
+            }
+
+            await _db.Jobs
+                .Where(j => oldJobIds.Contains(j.Id))
+                .ExecuteDeleteAsync();
+        }
+
+        private Task<Job?> FindOwnJobAsync(Guid id)
+        {
+            var userId = GetUserId();
+            return _db.Jobs
+                .AsNoTracking()
+                .FirstOrDefaultAsync(j => j.Id == id && j.UserId == userId);
         }
 
         private int GetUserId()
