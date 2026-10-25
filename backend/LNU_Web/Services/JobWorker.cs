@@ -15,7 +15,7 @@ namespace LNU_Web.Services
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly JobQueue _queue;
         private readonly GaussSolver _solver;
-        private readonly JobLimitsOptions _limits;
+        private readonly SemaphoreSlim _slots;
         private readonly ILogger<JobWorker> _logger;
 
         public JobWorker(
@@ -28,7 +28,7 @@ namespace LNU_Web.Services
             _scopeFactory = scopeFactory;
             _queue = queue;
             _solver = solver;
-            _limits = limits.Value;
+            _slots = new SemaphoreSlim(limits.Value.MaxConcurrentJobsPerServer);
             _logger = logger;
         }
 
@@ -36,11 +36,9 @@ namespace LNU_Web.Services
         {
             await FailInterruptedJobsAsync(stoppingToken);
 
-            using var semaphore = new SemaphoreSlim(_limits.MaxConcurrentJobsPerServer);
-
             await foreach (var jobId in _queue.ReadAllAsync(stoppingToken))
             {
-                await semaphore.WaitAsync(stoppingToken);
+                await _slots.WaitAsync(stoppingToken);
 
                 _ = Task.Run(async () =>
                 {
@@ -50,7 +48,7 @@ namespace LNU_Web.Services
                     }
                     finally
                     {
-                        semaphore.Release();
+                        _slots.Release();
                     }
                 }, CancellationToken.None);
             }
@@ -98,6 +96,7 @@ namespace LNU_Web.Services
                 return;
             }
 
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
             var stopwatch = Stopwatch.StartNew();
             var lastWrite = TimeSpan.Zero;
 
@@ -109,16 +108,21 @@ namespace LNU_Web.Services
                 }
 
                 lastWrite = stopwatch.Elapsed;
-                db.Jobs
-                    .Where(j => j.Id == jobId && j.Status == JobStatus.Running)
+                var updated = db.Jobs
+                    .Where(j => j.Id == jobId && j.Status == JobStatus.Running && !j.CancelRequested)
                     .ExecuteUpdate(s => s
                         .SetProperty(j => j.Progress, percent)
                         .SetProperty(j => j.Stage, stage));
+
+                if (updated == 0)
+                {
+                    cancellation.Cancel();
+                }
             }
 
             try
             {
-                var result = _solver.Solve(job.Size, job.Seed, ReportProgress, stoppingToken);
+                var result = _solver.Solve(job.Size, job.Seed, ReportProgress, cancellation.Token);
                 stopwatch.Stop();
 
                 var resultJson = JsonSerializer.Serialize(new
@@ -137,13 +141,23 @@ namespace LNU_Web.Services
                         .SetProperty(j => j.ResultJson, resultJson)
                         .SetProperty(j => j.FinishedAt, DateTime.UtcNow), CancellationToken.None);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
             {
                 await db.Jobs
                     .Where(j => j.Id == jobId)
                     .ExecuteUpdateAsync(s => s
                         .SetProperty(j => j.Status, JobStatus.Cancelled)
                         .SetProperty(j => j.Stage, "Cancelled")
+                        .SetProperty(j => j.FinishedAt, DateTime.UtcNow), CancellationToken.None);
+            }
+            catch (OperationCanceledException)
+            {
+                await db.Jobs
+                    .Where(j => j.Id == jobId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(j => j.Status, JobStatus.Failed)
+                        .SetProperty(j => j.Stage, "Interrupted")
+                        .SetProperty(j => j.ErrorMessage, "The server was stopped before the job finished.")
                         .SetProperty(j => j.FinishedAt, DateTime.UtcNow), CancellationToken.None);
             }
             catch (Exception ex)

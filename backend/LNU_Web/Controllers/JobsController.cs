@@ -97,6 +97,42 @@ namespace LNU_Web.Controllers
             return Ok(JobResponse.From(job));
         }
 
+        [HttpPost("{id:guid}/cancel")]
+        public async Task<IActionResult> Cancel(Guid id)
+        {
+            var userId = GetUserId();
+
+            var cancelledBeforeStart = await _db.Jobs
+                .Where(j => j.Id == id && j.UserId == userId && j.Status == JobStatus.Pending)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(j => j.Status, JobStatus.Cancelled)
+                    .SetProperty(j => j.CancelRequested, true)
+                    .SetProperty(j => j.Stage, "Cancelled")
+                    .SetProperty(j => j.FinishedAt, DateTime.UtcNow));
+
+            if (cancelledBeforeStart == 0)
+            {
+                await _db.Jobs
+                    .Where(j => j.Id == id && j.UserId == userId && j.Status == JobStatus.Running)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(j => j.CancelRequested, true)
+                        .SetProperty(j => j.Stage, "Cancelling"));
+            }
+
+            var job = await FindOwnJobAsync(id);
+            if (job == null)
+            {
+                return NotFound();
+            }
+
+            if (job.Status == JobStatus.Completed || job.Status == JobStatus.Failed)
+            {
+                return Conflict(new { message = "The job has already finished." });
+            }
+
+            return Ok(JobResponse.From(job));
+        }
+
         private async Task RemoveOldJobsAsync(int userId)
         {
             var oldJobIds = await _db.Jobs

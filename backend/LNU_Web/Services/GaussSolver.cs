@@ -45,8 +45,6 @@ namespace LNU_Web.Services
                 rightSide[i] = sum;
             }
 
-            var lastPercent = -1;
-
             for (var k = 0; k < size; k++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -96,12 +94,7 @@ namespace LNU_Web.Services
 
                 var remaining = (size - k - 1) / (double)size;
                 var done = 1 - remaining * remaining * remaining;
-                var percent = (int)(done * EliminationShare);
-                if (percent != lastPercent)
-                {
-                    lastPercent = percent;
-                    reportProgress(percent, "Forward elimination");
-                }
+                reportProgress((int)(done * EliminationShare), "Forward elimination");
             }
 
             var solution = new double[size];
@@ -117,12 +110,7 @@ namespace LNU_Web.Services
                 }
                 solution[i] = sum / row[i];
 
-                var percent = EliminationShare + (int)((size - i) / (double)size * (100 - EliminationShare));
-                if (percent != lastPercent)
-                {
-                    lastPercent = percent;
-                    reportProgress(percent, "Back substitution");
-                }
+                reportProgress(EliminationShare + (int)((size - i) / (double)size * (100 - EliminationShare)), "Back substitution");
             }
 
             var maxError = 0.0;

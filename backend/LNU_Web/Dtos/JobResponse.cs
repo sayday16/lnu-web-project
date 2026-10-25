@@ -10,6 +10,7 @@ namespace LNU_Web.Dtos
         public int Seed { get; set; }
         public string Status { get; set; } = string.Empty;
         public int Progress { get; set; }
+        public bool CancelRequested { get; set; }
         public string Stage { get; set; } = string.Empty;
         public JsonElement? Result { get; set; }
         public string? ErrorMessage { get; set; }
@@ -26,13 +27,25 @@ namespace LNU_Web.Dtos
                 Seed = job.Seed,
                 Status = job.Status.ToString(),
                 Progress = job.Progress,
+                CancelRequested = job.CancelRequested,
                 Stage = job.Stage,
-                Result = job.ResultJson == null ? null : JsonDocument.Parse(job.ResultJson).RootElement.Clone(),
+                Result = ParseResult(job.ResultJson),
                 ErrorMessage = job.ErrorMessage,
                 CreatedAt = job.CreatedAt,
                 StartedAt = job.StartedAt,
                 FinishedAt = job.FinishedAt
             };
+        }
+
+        private static JsonElement? ParseResult(string? resultJson)
+        {
+            if (resultJson == null)
+            {
+                return null;
+            }
+
+            using var document = JsonDocument.Parse(resultJson);
+            return document.RootElement.Clone();
         }
     }
 }

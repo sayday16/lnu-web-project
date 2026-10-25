@@ -9,6 +9,7 @@ namespace LNU_Web.Models
         public int Seed { get; set; }
         public JobStatus Status { get; set; }
         public int Progress { get; set; }
+        public bool CancelRequested { get; set; }
         public string Stage { get; set; } = string.Empty;
         public string? ResultJson { get; set; }
         public string? ErrorMessage { get; set; }
