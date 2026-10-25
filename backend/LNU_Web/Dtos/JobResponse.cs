@@ -31,10 +31,15 @@ namespace LNU_Web.Dtos
                 Stage = job.Stage,
                 Result = ParseResult(job.ResultJson),
                 ErrorMessage = job.ErrorMessage,
-                CreatedAt = job.CreatedAt,
-                StartedAt = job.StartedAt,
-                FinishedAt = job.FinishedAt
+                CreatedAt = AsUtc(job.CreatedAt),
+                StartedAt = job.StartedAt.HasValue ? AsUtc(job.StartedAt.Value) : null,
+                FinishedAt = job.FinishedAt.HasValue ? AsUtc(job.FinishedAt.Value) : null
             };
+        }
+
+        private static DateTime AsUtc(DateTime value)
+        {
+            return DateTime.SpecifyKind(value, DateTimeKind.Utc);
         }
 
         private static JsonElement? ParseResult(string? resultJson)

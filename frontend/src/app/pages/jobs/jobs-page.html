@@ -1,0 +1,88 @@
+<section class="card">
+  <h2>Нова задача</h2>
+  <p class="hint">
+    Розв'язання системи лінійних рівнянь методом Гауса. Система генерується випадково за зерном (seed).
+  </p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="job-form" novalidate>
+    <label>
+      Кількість невідомих (N)
+      <input type="number" formControlName="size" [min]="limits()?.minMatrixSize ?? 2" [max]="limits()?.maxMatrixSize ?? 5000" />
+    </label>
+    <label>
+      Seed (необов'язково)
+      <input type="number" formControlName="seed" placeholder="випадковий" />
+    </label>
+    <button type="submit" class="primary" [disabled]="submitting() || limitReached()">Запустити</button>
+  </form>
+
+  @if (limits(); as limits) {
+    @if (form.controls.size.touched && form.controls.size.invalid) {
+      <p class="field-error">N має бути цілим числом від {{ limits.minMatrixSize }} до {{ limits.maxMatrixSize }}.</p>
+    }
+    <p class="hint">
+      Активних задач: {{ activeCount() }} / {{ limits.maxActiveJobsPerUser }}.
+      @if (limitReached()) {
+        Дочекайтесь завершення або скасуйте одну з задач.
+      }
+    </p>
+  }
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+</section>
+
+<section class="card">
+  <h2>Історія задач</h2>
+
+  @if (loading()) {
+    <p class="hint">Завантаження…</p>
+  } @else {
+    @for (job of jobs(); track job.id) {
+      <article class="job" [attr.data-status]="job.status">
+        <header class="job-header">
+          <div>
+            <strong>N = {{ job.size }}</strong>
+            <span class="muted">seed {{ job.seed }} · {{ job.createdAt | date: 'dd.MM.yyyy HH:mm:ss' }}</span>
+          </div>
+          <span class="badge" [attr.data-status]="job.status">{{ statusLabel(job.status) }}</span>
+        </header>
+
+        <div class="progress" role="progressbar" [attr.aria-valuenow]="job.progress" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-fill" [style.width.%]="job.progress"></div>
+        </div>
+
+        <div class="job-meta">
+          <span>{{ job.progress }}% · {{ stageLabel(job.stage) }}</span>
+          @if (durationSeconds(job); as seconds) {
+            <span>{{ seconds | number: '1.1-1' }} с</span>
+          }
+        </div>
+
+        @if (job.result; as result) {
+          <div class="result">
+            <span>Макс. похибка: <strong>{{ result.maxError.toExponential(2) }}</strong></span>
+            <span>Час обчислення: <strong>{{ result.elapsedMs / 1000 | number: '1.1-2' }} с</strong></span>
+            <details>
+              <summary>Перші {{ result.firstValues.length }} значень розв'язку</summary>
+              <code>{{ formatValues(result.firstValues) }}</code>
+            </details>
+          </div>
+        }
+
+        @if (job.errorMessage) {
+          <p class="error">{{ job.errorMessage }}</p>
+        }
+
+        @if (isActive(job)) {
+          <button type="button" class="secondary" [disabled]="job.cancelRequested" (click)="cancel(job)">
+            {{ job.cancelRequested ? 'Скасовується…' : 'Скасувати' }}
+          </button>
+        }
+      </article>
+    } @empty {
+      <p class="hint">Задач ще немає. Запустіть першу вище.</p>
+    }
+  }
+</section>

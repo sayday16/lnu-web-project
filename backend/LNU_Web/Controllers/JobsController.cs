@@ -40,6 +40,18 @@ namespace LNU_Web.Controllers
             return Ok(jobs.Select(JobResponse.From));
         }
 
+        [HttpGet("limits")]
+        public IActionResult Limits()
+        {
+            return Ok(new
+            {
+                _limits.MinMatrixSize,
+                _limits.MaxMatrixSize,
+                _limits.MaxActiveJobsPerUser,
+                _limits.MaxStoredJobsPerUser
+            });
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create(CreateJobRequest request)
         {

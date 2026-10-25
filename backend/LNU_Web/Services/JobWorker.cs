@@ -11,6 +11,7 @@ namespace LNU_Web.Services
     public class JobWorker : BackgroundService
     {
         private static readonly TimeSpan ProgressWriteInterval = TimeSpan.FromMilliseconds(500);
+        private static readonly TimeSpan StartupRetryInterval = TimeSpan.FromSeconds(5);
 
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly JobQueue _queue;
@@ -34,7 +35,19 @@ namespace LNU_Web.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            await FailInterruptedJobsAsync(stoppingToken);
+            while (true)
+            {
+                try
+                {
+                    await FailInterruptedJobsAsync(stoppingToken);
+                    break;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogError(ex, "Database is not available yet, retrying in {Seconds} s", StartupRetryInterval.TotalSeconds);
+                    await Task.Delay(StartupRetryInterval, stoppingToken);
+                }
+            }
 
             await foreach (var jobId in _queue.ReadAllAsync(stoppingToken))
             {
