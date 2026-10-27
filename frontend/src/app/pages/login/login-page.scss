@@ -1,0 +1,38 @@
+.auth-card {
+  max-width: 400px;
+  margin: 48px auto;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+
+  button {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+    color: var(--text-muted);
+
+    &.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+  }
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.primary {
+  margin-top: 8px;
+}
