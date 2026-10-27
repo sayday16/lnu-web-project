@@ -10,6 +10,7 @@ export interface Job {
   id: string;
   size: number;
   seed: number;
+  nodeId: string | null;
   status: JobStatus;
   progress: number;
   cancelRequested: boolean;

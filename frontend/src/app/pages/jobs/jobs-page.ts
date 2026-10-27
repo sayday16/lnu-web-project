@@ -16,7 +16,7 @@ const STATUS_LABELS: Record<JobStatus, string> = {
 };
 
 const STAGE_LABELS: Record<string, string> = {
-  Queued: 'Очікує на вільний сервер',
+  Queued: 'Очікує на вільний вузол',
   Starting: 'Підготовка',
   'Forward elimination': 'Прямий хід',
   'Back substitution': 'Зворотний хід',

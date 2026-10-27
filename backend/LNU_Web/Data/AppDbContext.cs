@@ -31,6 +31,7 @@ namespace LNU_Web.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
                 entity.Property(e => e.Stage).HasMaxLength(100);
+                entity.Property(e => e.NodeId).HasMaxLength(50);
                 entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
                 entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(e => new { e.UserId, e.CreatedAt });

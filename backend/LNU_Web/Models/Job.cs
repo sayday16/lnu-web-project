@@ -7,6 +7,7 @@ namespace LNU_Web.Models
         public User User { get; set; } = null!;
         public int Size { get; set; }
         public int Seed { get; set; }
+        public string? NodeId { get; set; }
         public JobStatus Status { get; set; }
         public int Progress { get; set; }
         public bool CancelRequested { get; set; }

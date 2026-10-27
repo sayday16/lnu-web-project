@@ -16,6 +16,7 @@
     <button type="submit" class="primary" [disabled]="submitting() || limitReached()">Запустити</button>
   </form>
 
+
   @if (limits(); as limits) {
     @if (form.controls.size.touched && form.controls.size.invalid) {
       <p class="field-error">N має бути цілим числом від {{ limits.minMatrixSize }} до {{ limits.maxMatrixSize }}.</p>
@@ -45,6 +46,9 @@
           <div>
             <strong>N = {{ job.size }}</strong>
             <span class="muted">seed {{ job.seed }} · {{ job.createdAt | date: 'dd.MM.yyyy HH:mm:ss' }}</span>
+            @if (job.nodeId) {
+              <span class="muted">Вузол: <strong>{{ job.nodeId }}</strong></span>
+            }
           </div>
           <span class="badge" [attr.data-status]="job.status">{{ statusLabel(job.status) }}</span>
         </header>

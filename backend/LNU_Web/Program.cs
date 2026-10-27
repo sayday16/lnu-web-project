@@ -32,9 +32,13 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 builder.Services.Configure<JobLimitsOptions>(builder.Configuration.GetSection(JobLimitsOptions.SectionName));
-builder.Services.AddSingleton<JobQueue>();
-builder.Services.AddSingleton<GaussSolver>();
-builder.Services.AddHostedService<JobWorker>();
+builder.Services.Configure<NodesOptions>(builder.Configuration.GetSection(NodesOptions.SectionName));
+builder.Services.AddHttpClient(NodeClient.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(3));
+builder.Services.AddSingleton<NodeClient>();
+builder.Services.AddSingleton<NodeRegistry>();
+builder.Services.AddSingleton<JobSignal>();
+builder.Services.AddHostedService<NodeMonitor>();
+builder.Services.AddHostedService<JobDispatcher>();
 
 builder.Services.AddControllers();
 

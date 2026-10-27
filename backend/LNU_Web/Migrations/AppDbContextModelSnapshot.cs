@@ -40,6 +40,10 @@ namespace LNU_Web.Migrations
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("NodeId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int>("Progress")
                         .HasColumnType("int");
 

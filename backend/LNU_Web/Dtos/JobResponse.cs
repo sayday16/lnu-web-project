@@ -8,6 +8,7 @@ namespace LNU_Web.Dtos
         public Guid Id { get; set; }
         public int Size { get; set; }
         public int Seed { get; set; }
+        public string? NodeId { get; set; }
         public string Status { get; set; } = string.Empty;
         public int Progress { get; set; }
         public bool CancelRequested { get; set; }
@@ -25,6 +26,7 @@ namespace LNU_Web.Dtos
                 Id = job.Id,
                 Size = job.Size,
                 Seed = job.Seed,
+                NodeId = job.NodeId,
                 Status = job.Status.ToString(),
                 Progress = job.Progress,
                 CancelRequested = job.CancelRequested,
