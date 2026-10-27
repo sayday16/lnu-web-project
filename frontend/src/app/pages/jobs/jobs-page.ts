@@ -6,6 +6,7 @@ import { Job, JobLimits, JobStatus, isActive } from '../../core/jobs/job.model';
 import { JobsService } from '../../core/jobs/jobs.service';
 
 const POLL_INTERVAL_MS = 1000;
+const MAX_SEED = 2147483647;
 
 const STATUS_LABELS: Record<JobStatus, string> = {
   Pending: 'У черзі',
@@ -38,6 +39,7 @@ export class JobsPage implements OnInit, OnDestroy {
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
 
+  readonly maxSeed = MAX_SEED;
   readonly jobs = signal<Job[]>([]);
   readonly limits = signal<JobLimits | null>(null);
   readonly loading = signal(true);
@@ -51,7 +53,11 @@ export class JobsPage implements OnInit, OnDestroy {
 
   readonly form = new FormGroup({
     size: new FormControl<number | null>(1000, [Validators.required]),
-    seed: new FormControl<number | null>(null),
+    seed: new FormControl<number | null>(null, [
+      Validators.min(0),
+      Validators.max(MAX_SEED),
+      Validators.pattern(/^\d+$/),
+    ]),
   });
 
   ngOnInit(): void {

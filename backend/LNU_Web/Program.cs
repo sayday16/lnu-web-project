@@ -5,6 +5,7 @@ using LNU_Web.Services;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -40,7 +41,22 @@ builder.Services.AddSingleton<JobSignal>();
 builder.Services.AddHostedService<NodeMonitor>();
 builder.Services.AddHostedService<JobDispatcher>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var invalidJsonFields = context.ModelState.Keys
+            .Where(key => key.StartsWith("$.") && context.ModelState[key]!.Errors.Count > 0)
+            .Select(key => key[2..])
+            .ToList();
+
+        var message = invalidJsonFields.Count > 0
+            ? $"Invalid value for: {string.Join(", ", invalidJsonFields)}."
+            : string.Join(" ", context.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+
+        return new BadRequestObjectResult(new { message });
+    };
+});
 
 builder.Services.AddCors(options =>
 {

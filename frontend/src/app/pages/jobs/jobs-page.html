@@ -11,11 +11,14 @@
     </label>
     <label>
       Seed (необов'язково)
-      <input type="number" formControlName="seed" placeholder="випадковий" />
+      <input type="number" formControlName="seed" placeholder="випадковий" min="0" [max]="maxSeed" />
     </label>
     <button type="submit" class="primary" [disabled]="submitting() || limitReached()">Запустити</button>
   </form>
 
+  @if (form.controls.seed.touched && form.controls.seed.invalid) {
+    <p class="field-error">Seed має бути цілим числом від 0 до {{ maxSeed }}.</p>
+  }
 
   @if (limits(); as limits) {
     @if (form.controls.size.touched && form.controls.size.invalid) {
