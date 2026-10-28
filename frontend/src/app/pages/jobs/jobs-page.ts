@@ -1,5 +1,6 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { describeHttpError } from '../../core/http-error';
 import { Job, JobLimits, JobStatus, isActive } from '../../core/jobs/job.model';
@@ -7,6 +8,7 @@ import { JobsService } from '../../core/jobs/jobs.service';
 
 const POLL_INTERVAL_MS = 1000;
 const MAX_SEED = 2147483647;
+const SECONDS_PER_CUBED_SIZE = 9e-10;
 
 const STATUS_LABELS: Record<JobStatus, string> = {
   Pending: 'У черзі',
@@ -26,6 +28,7 @@ const STAGE_LABELS: Record<string, string> = {
   Cancelled: 'Скасовано',
   Interrupted: 'Перервано',
   Failed: 'Помилка',
+  'Time limit exceeded': 'Перевищено ліміт часу',
 };
 
 @Component({
@@ -58,6 +61,21 @@ export class JobsPage implements OnInit, OnDestroy {
       Validators.max(MAX_SEED),
       Validators.pattern(/^\d+$/),
     ]),
+  });
+
+  private readonly sizeValue = toSignal(this.form.controls.size.valueChanges, {
+    initialValue: this.form.controls.size.value,
+  });
+
+  readonly estimatedSeconds = computed(() => {
+    const size = Number(this.sizeValue());
+    return Number.isFinite(size) && size > 0 ? size ** 3 * SECONDS_PER_CUBED_SIZE : null;
+  });
+
+  readonly exceedsTimeLimit = computed(() => {
+    const limits = this.limits();
+    const estimate = this.estimatedSeconds();
+    return limits !== null && estimate !== null && estimate > limits.maxComputeSeconds;
   });
 
   ngOnInit(): void {
@@ -125,6 +143,16 @@ export class JobsPage implements OnInit, OnDestroy {
 
   isActive(job: Job): boolean {
     return isActive(job);
+  }
+
+  formatDuration(seconds: number): string {
+    if (seconds < 1) {
+      return 'менше 1 с';
+    }
+    const rounded = Math.round(seconds);
+    const minutes = Math.floor(rounded / 60);
+    const rest = rounded % 60;
+    return minutes > 0 ? `${minutes} хв ${rest} с` : `${rest} с`;
   }
 
   formatValues(values: number[]): string {

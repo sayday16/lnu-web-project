@@ -30,6 +30,15 @@
         Дочекайтесь завершення або скасуйте одну з задач.
       }
     </p>
+    <p class="hint">
+      Ліміт часу обчислення однієї задачі: {{ formatDuration(limits.maxComputeSeconds) }}.
+      @if (estimatedSeconds(); as estimate) {
+        Орієнтовний час для N = {{ form.controls.size.value }}: ≈ {{ formatDuration(estimate) }}.
+      }
+    </p>
+    @if (exceedsTimeLimit()) {
+      <p class="field-error">Орієнтовний час перевищує ліміт: задачу буде зупинено з помилкою.</p>
+    }
   }
 
   @if (error()) {

@@ -48,7 +48,8 @@ namespace LNU_Web.Controllers
                 _limits.MinMatrixSize,
                 _limits.MaxMatrixSize,
                 _limits.MaxActiveJobsPerUser,
-                _limits.MaxStoredJobsPerUser
+                _limits.MaxStoredJobsPerUser,
+                _limits.MaxComputeSeconds
             });
         }
 

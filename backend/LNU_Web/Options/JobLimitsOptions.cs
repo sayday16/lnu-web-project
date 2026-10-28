@@ -8,5 +8,6 @@ namespace LNU_Web.Options
         public int MaxMatrixSize { get; set; } = 5000;
         public int MaxActiveJobsPerUser { get; set; } = 3;
         public int MaxStoredJobsPerUser { get; set; } = 20;
+        public int MaxComputeSeconds { get; set; } = 300;
     }
 }

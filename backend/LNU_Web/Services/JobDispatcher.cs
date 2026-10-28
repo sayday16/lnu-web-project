@@ -1,7 +1,9 @@
 using System.Text.Json;
 using LNU_Web.Data;
 using LNU_Web.Models;
+using LNU_Web.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace LNU_Web.Services
 {
@@ -14,6 +16,7 @@ namespace LNU_Web.Services
         private readonly NodeRegistry _nodes;
         private readonly NodeClient _client;
         private readonly JobSignal _signal;
+        private readonly int _maxComputeSeconds;
         private readonly ILogger<JobDispatcher> _logger;
         private readonly Dictionary<Guid, DateTime> _unreachableSince = new();
 
@@ -22,12 +25,14 @@ namespace LNU_Web.Services
             NodeRegistry nodes,
             NodeClient client,
             JobSignal signal,
+            IOptions<JobLimitsOptions> limits,
             ILogger<JobDispatcher> logger)
         {
             _scopeFactory = scopeFactory;
             _nodes = nodes;
             _client = client;
             _signal = signal;
+            _maxComputeSeconds = limits.Value.MaxComputeSeconds;
             _logger = logger;
         }
 
@@ -140,7 +145,7 @@ namespace LNU_Web.Services
                     break;
 
                 case "Failed":
-                    await FailAsync(db, jobId, state.ErrorMessage ?? "The compute node failed the job.", cancellationToken);
+                    await FailAsync(db, jobId, state.ErrorMessage ?? "The compute node failed the job.", cancellationToken, state.Stage);
                     break;
             }
         }
@@ -169,7 +174,7 @@ namespace LNU_Web.Services
                     return;
                 }
 
-                var outcome = await _client.StartAsync(node.Url, job.Id, job.Size, job.Seed, cancellationToken);
+                var outcome = await _client.StartAsync(node.Url, job.Id, job.Size, job.Seed, _maxComputeSeconds, cancellationToken);
 
                 switch (outcome)
                 {
@@ -209,13 +214,13 @@ namespace LNU_Web.Services
             }
         }
 
-        private static Task FailAsync(AppDbContext db, Guid jobId, string message, CancellationToken cancellationToken)
+        private static Task FailAsync(AppDbContext db, Guid jobId, string message, CancellationToken cancellationToken, string stage = "Failed")
         {
             return db.Jobs
                 .Where(j => j.Id == jobId && j.Status == JobStatus.Running)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(j => j.Status, JobStatus.Failed)
-                    .SetProperty(j => j.Stage, "Failed")
+                    .SetProperty(j => j.Stage, stage)
                     .SetProperty(j => j.ErrorMessage, message)
                     .SetProperty(j => j.FinishedAt, DateTime.UtcNow), cancellationToken);
         }

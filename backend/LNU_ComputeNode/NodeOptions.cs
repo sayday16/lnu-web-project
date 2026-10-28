@@ -8,5 +8,6 @@ namespace LNU_ComputeNode
         public int MaxConcurrentJobs { get; set; } = 2;
         public int MinMatrixSize { get; set; } = 2;
         public int MaxMatrixSize { get; set; } = 5000;
+        public int MaxComputeSeconds { get; set; } = 300;
     }
 }

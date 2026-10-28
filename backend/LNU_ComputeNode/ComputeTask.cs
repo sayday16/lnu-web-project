@@ -28,16 +28,18 @@ namespace LNU_ComputeNode
         private long _elapsedMs;
         private string? _errorMessage;
 
-        public ComputeTask(Guid id, int size, int seed)
+        public ComputeTask(Guid id, int size, int seed, int timeLimitSeconds)
         {
             Id = id;
             Size = size;
             Seed = seed;
+            TimeLimitSeconds = timeLimitSeconds;
         }
 
         public Guid Id { get; }
         public int Size { get; }
         public int Seed { get; }
+        public int TimeLimitSeconds { get; }
         public CancellationTokenSource Cancellation { get; } = new();
         public ComputeStatus Status { get; private set; } = ComputeStatus.Running;
         public DateTime? FinishedAt { get; private set; }
@@ -74,12 +76,12 @@ namespace LNU_ComputeNode
             }
         }
 
-        public void Fail(string errorMessage)
+        public void Fail(string errorMessage, string stage = "Failed")
         {
             lock (_sync)
             {
                 Status = ComputeStatus.Failed;
-                _stage = "Failed";
+                _stage = stage;
                 _errorMessage = errorMessage;
                 FinishedAt = DateTime.UtcNow;
             }

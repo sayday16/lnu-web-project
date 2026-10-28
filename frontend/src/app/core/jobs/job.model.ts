@@ -27,6 +27,7 @@ export interface JobLimits {
   maxMatrixSize: number;
   maxActiveJobsPerUser: number;
   maxStoredJobsPerUser: number;
+  maxComputeSeconds: number;
 }
 
 export function isActive(job: Job): boolean {
