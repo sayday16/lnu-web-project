@@ -48,12 +48,12 @@ namespace LNU_Web.Services
             }
         }
 
-        public async Task<NodeStartOutcome> StartAsync(string nodeUrl, Guid id, int size, int seed, CancellationToken cancellationToken)
+        public async Task<NodeStartOutcome> StartAsync(string nodeUrl, Guid id, int size, int seed, int maxComputeSeconds, CancellationToken cancellationToken)
         {
             try
             {
                 using var response = await CreateClient(nodeUrl)
-                    .PostAsJsonAsync("compute", new { id, size, seed }, cancellationToken);
+                    .PostAsJsonAsync("compute", new { id, size, seed, maxComputeSeconds }, cancellationToken);
 
                 return response.StatusCode switch
                 {

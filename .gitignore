@@ -8,3 +8,5 @@ frontend/node_modules/
 
 # Local secrets (JWT key etc.), never commit
 appsettings.Local.json
+
+*.user

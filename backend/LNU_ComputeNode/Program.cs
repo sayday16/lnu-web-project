@@ -22,7 +22,7 @@ app.MapPost("/compute", (ComputeRequest request, ComputeRegistry registry) =>
         });
     }
 
-    return registry.TryStart(request.Id, request.Size, request.Seed) switch
+    return registry.TryStart(request.Id, request.Size, request.Seed, request.MaxComputeSeconds) switch
     {
         StartResult.Started => Results.Accepted($"/compute/{request.Id}", registry.Find(request.Id)!.ToResponse(options.Id)),
         StartResult.AlreadyExists => Results.Conflict(new { message = "A task with this id already exists." }),
@@ -53,4 +53,4 @@ app.MapHealthChecks("/health");
 
 app.Run();
 
-public record ComputeRequest(Guid Id, int Size, int Seed);
+public record ComputeRequest(Guid Id, int Size, int Seed, int? MaxComputeSeconds);

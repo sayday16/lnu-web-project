@@ -31,8 +31,12 @@ namespace LNU_ComputeNode
 
         public int RunningJobs => Volatile.Read(ref _runningJobs);
 
-        public StartResult TryStart(Guid id, int size, int seed)
+        public StartResult TryStart(Guid id, int size, int seed, int? requestedTimeLimitSeconds)
         {
+            var timeLimitSeconds = requestedTimeLimitSeconds is > 0
+                ? Math.Min(requestedTimeLimitSeconds.Value, _options.MaxComputeSeconds)
+                : _options.MaxComputeSeconds;
+
             RemoveExpired();
 
             lock (_startLock)
@@ -47,7 +51,7 @@ namespace LNU_ComputeNode
                     return StartResult.Busy;
                 }
 
-                var task = new ComputeTask(id, size, seed);
+                var task = new ComputeTask(id, size, seed, timeLimitSeconds);
                 _tasks[id] = task;
                 Interlocked.Increment(ref _runningJobs);
 
@@ -79,11 +83,17 @@ namespace LNU_ComputeNode
         private void Run(ComputeTask task)
         {
             var stopwatch = Stopwatch.StartNew();
+            using var timeLimit = new CancellationTokenSource(TimeSpan.FromSeconds(task.TimeLimitSeconds));
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(task.Cancellation.Token, timeLimit.Token);
 
             try
             {
-                var result = _solver.Solve(task.Size, task.Seed, task.ReportProgress, task.Cancellation.Token);
+                var result = _solver.Solve(task.Size, task.Seed, task.ReportProgress, cancellation.Token);
                 task.Complete(result, stopwatch.ElapsedMilliseconds);
+            }
+            catch (OperationCanceledException) when (timeLimit.IsCancellationRequested && !task.Cancellation.IsCancellationRequested)
+            {
+                task.Fail($"Time limit of {task.TimeLimitSeconds} s exceeded.", "Time limit exceeded");
             }
             catch (OperationCanceledException)
             {
