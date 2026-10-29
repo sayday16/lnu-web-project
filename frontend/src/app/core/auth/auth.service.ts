@@ -10,6 +10,7 @@ interface TokenPayload {
   sub: string;
   email: string;
   exp: number;
+  role?: string;
 }
 
 interface LoginResponse {
@@ -26,6 +27,10 @@ export class AuthService {
   readonly email = computed(() => {
     const token = this.token();
     return token ? (decodePayload(token)?.email ?? null) : null;
+  });
+  readonly isAdmin = computed(() => {
+    const token = this.token();
+    return token !== null && decodePayload(token)?.role === 'admin';
   });
 
   getToken(): string | null {

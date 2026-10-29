@@ -3,34 +3,15 @@ import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { catchError, combineLatest, debounceTime, of, startWith, switchMap, timer } from 'rxjs';
+import { formatDuration } from '../../core/format';
 import { describeHttpError } from '../../core/http-error';
+import { stageLabel, statusLabel } from '../../core/jobs/job-labels';
 import { Job, JobEstimate, JobLimits, JobStatus, isActive } from '../../core/jobs/job.model';
 import { JobsService } from '../../core/jobs/jobs.service';
 
 const POLL_INTERVAL_MS = 1000;
 const MAX_SEED = 2147483647;
 const ESTIMATE_REFRESH_MS = 5000;
-
-const STATUS_LABELS: Record<JobStatus, string> = {
-  Pending: 'У черзі',
-  Running: 'Виконується',
-  Completed: 'Готово',
-  Failed: 'Помилка',
-  Cancelled: 'Скасовано',
-};
-
-const STAGE_LABELS: Record<string, string> = {
-  Queued: 'Очікує на вільний вузол',
-  Starting: 'Підготовка',
-  'Forward elimination': 'Прямий хід',
-  'Back substitution': 'Зворотний хід',
-  Done: 'Завершено',
-  Cancelling: 'Скасування…',
-  Cancelled: 'Скасовано',
-  Interrupted: 'Перервано',
-  Failed: 'Помилка',
-  'Time limit exceeded': 'Перевищено ліміт часу',
-};
 
 @Component({
   selector: 'app-jobs-page',
@@ -145,11 +126,11 @@ export class JobsPage implements OnInit, OnDestroy {
   }
 
   statusLabel(status: JobStatus): string {
-    return STATUS_LABELS[status];
+    return statusLabel(status);
   }
 
   stageLabel(stage: string): string {
-    return STAGE_LABELS[stage] ?? stage;
+    return stageLabel(stage);
   }
 
   isActive(job: Job): boolean {
@@ -170,13 +151,7 @@ export class JobsPage implements OnInit, OnDestroy {
   }
 
   formatDuration(seconds: number): string {
-    if (seconds < 1) {
-      return 'менше 1 с';
-    }
-    const rounded = Math.round(seconds);
-    const minutes = Math.floor(rounded / 60);
-    const rest = rounded % 60;
-    return minutes > 0 ? `${minutes} хв ${rest} с` : `${rest} с`;
+    return formatDuration(seconds);
   }
 
   formatValues(values: number[]): string {
