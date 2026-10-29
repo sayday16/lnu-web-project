@@ -1,6 +1,12 @@
 <header class="topbar">
   <div class="topbar-inner">
-    <span class="brand">Numerical Lab</span>
+    <div class="nav">
+      <span class="brand">Numerical Lab</span>
+      @if (auth.isAdmin()) {
+        <a routerLink="/jobs" routerLinkActive="active">Задачі</a>
+        <a routerLink="/admin" routerLinkActive="active">Адмін-панель</a>
+      }
+    </div>
     @if (auth.isLoggedIn()) {
       <div class="user">
         <span>{{ auth.email() }}</span>

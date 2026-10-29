@@ -9,3 +9,11 @@ export const authGuard: CanActivateFn = () => {
 export const guestGuard: CanActivateFn = () => {
   return inject(AuthService).getToken() ? inject(Router).createUrlTree(['/jobs']) : true;
 };
+
+export const adminGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  if (!auth.getToken()) {
+    return inject(Router).createUrlTree(['/login']);
+  }
+  return auth.isAdmin() ? true : inject(Router).createUrlTree(['/jobs']);
+};

@@ -1,3 +1,4 @@
+using LNU_Web.Options;
 using LNU_Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -5,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace LNU_Web.Controllers
 {
     [ApiController]
-    [Authorize]
+    [Authorize(Roles = AdminOptions.RoleName)]
     [Route("api/[controller]")]
     public class NodesController : ControllerBase
     {
