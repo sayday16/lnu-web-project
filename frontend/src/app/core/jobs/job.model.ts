@@ -20,6 +20,10 @@ export interface Job {
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
+  queuePosition: number | null;
+  queueLength: number | null;
+  estimatedWaitSeconds: number | null;
+  estimatedRemainingSeconds: number | null;
 }
 
 export interface JobLimits {
@@ -32,4 +36,10 @@ export interface JobLimits {
 
 export function isActive(job: Job): boolean {
   return job.status === 'Pending' || job.status === 'Running';
+}
+
+export interface JobEstimate {
+  durationSeconds: number;
+  waitSeconds: number | null;
+  queuePosition: number | null;
 }

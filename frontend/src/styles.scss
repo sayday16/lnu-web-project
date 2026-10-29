@@ -99,3 +99,11 @@ button.secondary {
   font-size: 0.85rem;
   margin: -4px 0 0;
 }
+
+.notice {
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 8px 0 0;
+}

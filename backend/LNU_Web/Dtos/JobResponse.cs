@@ -1,5 +1,6 @@
 using System.Text.Json;
 using LNU_Web.Models;
+using LNU_Web.Services;
 
 namespace LNU_Web.Dtos
 {
@@ -18,8 +19,32 @@ namespace LNU_Web.Dtos
         public DateTime CreatedAt { get; set; }
         public DateTime? StartedAt { get; set; }
         public DateTime? FinishedAt { get; set; }
+        public int? QueuePosition { get; set; }
+        public int? QueueLength { get; set; }
+        public double? EstimatedWaitSeconds { get; set; }
+        public double? EstimatedRemainingSeconds { get; set; }
 
-        public static JobResponse From(Job job)
+        public static JobResponse From(Job job, QueueSnapshot? snapshot = null)
+        {
+            var response = Map(job);
+            if (snapshot == null)
+            {
+                return response;
+            }
+
+            var queued = snapshot.FindQueued(job.Id);
+            if (queued != null)
+            {
+                response.QueuePosition = queued.Position;
+                response.QueueLength = snapshot.Queue.Count;
+                response.EstimatedWaitSeconds = queued.EstimatedWaitSeconds;
+            }
+
+            response.EstimatedRemainingSeconds = snapshot.FindRemainingSeconds(job.Id);
+            return response;
+        }
+
+        private static JobResponse Map(Job job)
         {
             return new JobResponse
             {

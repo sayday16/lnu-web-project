@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_URL } from '../api.config';
-import { Job, JobLimits } from './job.model';
+import { Job, JobEstimate, JobLimits } from './job.model';
 
 @Injectable({ providedIn: 'root' })
 export class JobsService {
@@ -15,6 +15,10 @@ export class JobsService {
 
   limits(): Observable<JobLimits> {
     return this.http.get<JobLimits>(`${this.baseUrl}/limits`);
+  }
+
+  estimate(size: number): Observable<JobEstimate> {
+    return this.http.get<JobEstimate>(`${this.baseUrl}/estimate`, { params: { size } });
   }
 
   create(size: number, seed: number | null): Observable<Job> {
