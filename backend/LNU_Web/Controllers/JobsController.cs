@@ -17,12 +17,14 @@ namespace LNU_Web.Controllers
     {
         private readonly AppDbContext _db;
         private readonly JobSignal _signal;
+        private readonly JobQueuePlanner _planner;
         private readonly JobLimitsOptions _limits;
 
-        public JobsController(AppDbContext db, JobSignal signal, IOptions<JobLimitsOptions> limits)
+        public JobsController(AppDbContext db, JobSignal signal, JobQueuePlanner planner, IOptions<JobLimitsOptions> limits)
         {
             _db = db;
             _signal = signal;
+            _planner = planner;
             _limits = limits.Value;
         }
 
@@ -37,7 +39,8 @@ namespace LNU_Web.Controllers
                 .Take(_limits.MaxStoredJobsPerUser)
                 .ToListAsync();
 
-            return Ok(jobs.Select(JobResponse.From));
+            var snapshot = await _planner.BuildAsync(_db, HttpContext.RequestAborted);
+            return Ok(jobs.Select(job => JobResponse.From(job, snapshot)));
         }
 
         [HttpGet("limits")]
@@ -50,6 +53,28 @@ namespace LNU_Web.Controllers
                 _limits.MaxActiveJobsPerUser,
                 _limits.MaxStoredJobsPerUser,
                 _limits.MaxComputeSeconds
+            });
+        }
+
+        [HttpGet("estimate")]
+        public async Task<IActionResult> Estimate([FromQuery] int size)
+        {
+            if (size < _limits.MinMatrixSize || size > _limits.MaxMatrixSize)
+            {
+                return BadRequest(new
+                {
+                    message = $"Size must be between {_limits.MinMatrixSize} and {_limits.MaxMatrixSize}."
+                });
+            }
+
+            var snapshot = await _planner.BuildAsync(_db, HttpContext.RequestAborted, new QueueProbe(GetUserId(), size));
+            var probe = snapshot.FindQueued(QueueProbe.JobId);
+
+            return Ok(new
+            {
+                durationSeconds = snapshot.EstimateDurationSeconds(size),
+                waitSeconds = probe?.EstimatedWaitSeconds,
+                queuePosition = probe?.Position
             });
         }
 
@@ -95,7 +120,8 @@ namespace LNU_Web.Controllers
 
             await RemoveOldJobsAsync(userId);
 
-            return AcceptedAtAction(nameof(Get), new { id = job.Id }, JobResponse.From(job));
+            var snapshot = await _planner.BuildAsync(_db, HttpContext.RequestAborted);
+            return AcceptedAtAction(nameof(Get), new { id = job.Id }, JobResponse.From(job, snapshot));
         }
 
         [HttpGet("{id:guid}")]
@@ -107,7 +133,8 @@ namespace LNU_Web.Controllers
                 return NotFound();
             }
 
-            return Ok(JobResponse.From(job));
+            var snapshot = await _planner.BuildAsync(_db, HttpContext.RequestAborted);
+            return Ok(JobResponse.From(job, snapshot));
         }
 
         [HttpPost("{id:guid}/cancel")]

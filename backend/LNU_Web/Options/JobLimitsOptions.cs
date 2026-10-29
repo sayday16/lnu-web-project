@@ -9,5 +9,6 @@ namespace LNU_Web.Options
         public int MaxActiveJobsPerUser { get; set; } = 3;
         public int MaxStoredJobsPerUser { get; set; } = 20;
         public int MaxComputeSeconds { get; set; } = 300;
+        public double SecondsPerCubedSize { get; set; } = 9e-10;
     }
 }

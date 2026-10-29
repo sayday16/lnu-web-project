@@ -2,13 +2,14 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { catchError, combineLatest, debounceTime, of, startWith, switchMap, timer } from 'rxjs';
 import { describeHttpError } from '../../core/http-error';
-import { Job, JobLimits, JobStatus, isActive } from '../../core/jobs/job.model';
+import { Job, JobEstimate, JobLimits, JobStatus, isActive } from '../../core/jobs/job.model';
 import { JobsService } from '../../core/jobs/jobs.service';
 
 const POLL_INTERVAL_MS = 1000;
 const MAX_SEED = 2147483647;
-const SECONDS_PER_CUBED_SIZE = 9e-10;
+const ESTIMATE_REFRESH_MS = 5000;
 
 const STATUS_LABELS: Record<JobStatus, string> = {
   Pending: 'У черзі',
@@ -48,6 +49,7 @@ export class JobsPage implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
+  readonly notice = signal<string | null>(null);
   readonly activeCount = computed(() => this.jobs().filter(isActive).length);
   readonly limitReached = computed(() => {
     const limits = this.limits();
@@ -63,19 +65,26 @@ export class JobsPage implements OnInit, OnDestroy {
     ]),
   });
 
-  private readonly sizeValue = toSignal(this.form.controls.size.valueChanges, {
-    initialValue: this.form.controls.size.value,
-  });
-
-  readonly estimatedSeconds = computed(() => {
-    const size = Number(this.sizeValue());
-    return Number.isFinite(size) && size > 0 ? size ** 3 * SECONDS_PER_CUBED_SIZE : null;
-  });
+  readonly estimate = toSignal(
+    combineLatest([
+      this.form.controls.size.valueChanges.pipe(startWith(this.form.controls.size.value)),
+      timer(0, ESTIMATE_REFRESH_MS),
+    ]).pipe(
+      debounceTime(300),
+      switchMap(([size]) => {
+        const value = Number(size);
+        return Number.isInteger(value) && value > 0
+          ? this.jobsService.estimate(value).pipe(catchError(() => of(null)))
+          : of(null);
+      }),
+    ),
+    { initialValue: null as JobEstimate | null },
+  );
 
   readonly exceedsTimeLimit = computed(() => {
     const limits = this.limits();
-    const estimate = this.estimatedSeconds();
-    return limits !== null && estimate !== null && estimate > limits.maxComputeSeconds;
+    const estimate = this.estimate();
+    return limits !== null && estimate !== null && estimate.durationSeconds > limits.maxComputeSeconds;
   });
 
   ngOnInit(): void {
@@ -110,10 +119,12 @@ export class JobsPage implements OnInit, OnDestroy {
     const { size, seed } = this.form.getRawValue();
     this.submitting.set(true);
     this.error.set(null);
+    this.notice.set(null);
 
     this.jobsService.create(size!, seed).subscribe({
-      next: () => {
+      next: (job) => {
         this.submitting.set(false);
+        this.notice.set(this.describeQueuing(job));
         this.refresh();
       },
       error: (error: unknown) => {
@@ -143,6 +154,19 @@ export class JobsPage implements OnInit, OnDestroy {
 
   isActive(job: Job): boolean {
     return isActive(job);
+  }
+
+  describeQueuing(job: Job): string | null {
+    if (job.status !== 'Pending' || job.queuePosition === null) {
+      return null;
+    }
+    if (job.estimatedWaitSeconds === null) {
+      return 'Немає доступних обчислювальних вузлів — задачу поставлено в чергу.';
+    }
+    if (job.estimatedWaitSeconds <= 0) {
+      return null;
+    }
+    return `Усі вузли зайняті — задачу поставлено в чергу (позиція ${job.queuePosition} з ${job.queueLength}, орієнтовне очікування ≈ ${this.formatDuration(job.estimatedWaitSeconds)}).`;
   }
 
   formatDuration(seconds: number): string {

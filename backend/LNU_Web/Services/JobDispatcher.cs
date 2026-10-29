@@ -16,6 +16,7 @@ namespace LNU_Web.Services
         private readonly NodeRegistry _nodes;
         private readonly NodeClient _client;
         private readonly JobSignal _signal;
+        private readonly JobQueuePlanner _planner;
         private readonly int _maxComputeSeconds;
         private readonly ILogger<JobDispatcher> _logger;
         private readonly Dictionary<Guid, DateTime> _unreachableSince = new();
@@ -25,6 +26,7 @@ namespace LNU_Web.Services
             NodeRegistry nodes,
             NodeClient client,
             JobSignal signal,
+            JobQueuePlanner planner,
             IOptions<JobLimitsOptions> limits,
             ILogger<JobDispatcher> logger)
         {
@@ -32,6 +34,7 @@ namespace LNU_Web.Services
             _nodes = nodes;
             _client = client;
             _signal = signal;
+            _planner = planner;
             _maxComputeSeconds = limits.Value.MaxComputeSeconds;
             _logger = logger;
         }
@@ -158,13 +161,8 @@ namespace LNU_Web.Services
                 return;
             }
 
-            var pendingJobs = await db.Jobs
-                .AsNoTracking()
-                .Where(j => j.Status == JobStatus.Pending)
-                .OrderBy(j => j.CreatedAt)
-                .Select(j => new { j.Id, j.Size, j.Seed })
-                .Take(freeSlots)
-                .ToListAsync(cancellationToken);
+            var snapshot = await _planner.BuildAsync(db, cancellationToken);
+            var pendingJobs = snapshot.Queue.Take(freeSlots).ToList();
 
             foreach (var job in pendingJobs)
             {

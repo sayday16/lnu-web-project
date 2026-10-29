@@ -32,10 +32,20 @@
     </p>
     <p class="hint">
       Ліміт часу обчислення однієї задачі: {{ formatDuration(limits.maxComputeSeconds) }}.
-      @if (estimatedSeconds(); as estimate) {
-        Орієнтовний час для N = {{ form.controls.size.value }}: ≈ {{ formatDuration(estimate) }}.
-      }
     </p>
+    @if (estimate(); as e) {
+      <p class="hint">
+        Для N = {{ form.controls.size.value }}: обчислення ≈ {{ formatDuration(e.durationSeconds) }}.
+        @if (e.waitSeconds === null) {
+          Зараз немає доступних обчислювальних вузлів.
+        } @else if (e.waitSeconds < 1) {
+          Є вільний вузол — задача стартує одразу.
+        } @else {
+          Якщо запустити зараз — очікування в черзі ≈ {{ formatDuration(e.waitSeconds) }} (позиція {{ e.queuePosition }}),
+          результат приблизно через {{ formatDuration(e.waitSeconds + e.durationSeconds) }}.
+        }
+      </p>
+    }
     @if (exceedsTimeLimit()) {
       <p class="field-error">Орієнтовний час перевищує ліміт: задачу буде зупинено з помилкою.</p>
     }
@@ -43,6 +53,10 @@
 
   @if (error()) {
     <p class="error">{{ error() }}</p>
+  }
+
+  @if (notice()) {
+    <p class="notice">{{ notice() }}</p>
   }
 </section>
 
@@ -75,6 +89,21 @@
             <span>{{ seconds | number: '1.1-1' }} с</span>
           }
         </div>
+
+        @if (job.status === 'Pending' && job.queuePosition !== null) {
+          <p class="queue-info">
+            Позиція в черзі: <strong>{{ job.queuePosition }} з {{ job.queueLength }}</strong> ·
+            @if (job.estimatedWaitSeconds !== null) {
+              орієнтовне очікування ≈ {{ formatDuration(job.estimatedWaitSeconds) }}
+            } @else {
+              немає доступних вузлів, час очікування невідомий
+            }
+          </p>
+        }
+
+        @if (job.status === 'Running' && job.estimatedRemainingSeconds !== null && !job.cancelRequested) {
+          <p class="queue-info">Залишилось ≈ {{ formatDuration(job.estimatedRemainingSeconds) }}</p>
+        }
 
         @if (job.result; as result) {
           <div class="result">
