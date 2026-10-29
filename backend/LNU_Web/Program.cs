@@ -1,7 +1,65 @@
+using LNU_Web.Data;
+using LNU_Web.Models;
+using LNU_Web.Options;
+using LNU_Web.Services;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration.AddUserSecrets<Program>(optional: true);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
-builder.Services.AddControllers();
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    var sources = string.Join("; ", ((IConfigurationRoot)builder.Configuration).Providers.Select(p => p.ToString()));
+    throw new InvalidOperationException(
+        $"Jwt:Key is missing. Environment='{builder.Environment.EnvironmentName}'. Configuration sources: {sources}");
+}
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.EnableRetryOnFailure()));
+
+builder.Services.AddScoped<TokenService>();
+
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+
+builder.Services.Configure<JobLimitsOptions>(builder.Configuration.GetSection(JobLimitsOptions.SectionName));
+builder.Services.Configure<NodesOptions>(builder.Configuration.GetSection(NodesOptions.SectionName));
+builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminOptions.SectionName));
+builder.Services.AddHttpClient(NodeClient.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(3));
+builder.Services.AddSingleton<NodeClient>();
+builder.Services.AddSingleton<NodeRegistry>();
+builder.Services.AddSingleton<JobSignal>();
+builder.Services.AddSingleton<JobQueuePlanner>();
+builder.Services.AddHostedService<NodeMonitor>();
+builder.Services.AddHostedService<JobDispatcher>();
+
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var invalidJsonFields = context.ModelState.Keys
+            .Where(key => key.StartsWith("$.") && context.ModelState[key]!.Errors.Count > 0)
+            .Select(key => key[2..])
+            .ToList();
+
+        var message = invalidJsonFields.Count > 0
+            ? $"Invalid value for: {string.Join(", ", invalidJsonFields)}."
+            : string.Join(" ", context.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+
+        return new BadRequestObjectResult(new { message });
+    };
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngular",
@@ -10,12 +68,51 @@ builder.Services.AddCors(options =>
                         .AllowAnyHeader());
 });
 
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            RoleClaimType = "role"
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Paste the JWT token here (without the word Bearer)."
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -24,8 +121,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
 app.UseCors("AllowAngular");
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

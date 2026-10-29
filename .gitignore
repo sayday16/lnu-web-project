@@ -1,7 +1,12 @@
 # Тимчасові файли бекенду
-backend/.vs/
-backend/bin/
-backend/obj/
+.vs/
+bin/
+obj/
 
 # Важкі залежності фронтенду
 frontend/node_modules/
+
+# Local secrets (JWT key etc.), never commit
+appsettings.Local.json
+
+*.user

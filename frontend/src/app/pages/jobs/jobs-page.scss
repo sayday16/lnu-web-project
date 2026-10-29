@@ -1,0 +1,137 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+}
+
+.job-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0;
+}
+
+.job {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  & + .job {
+    margin-top: 12px;
+  }
+}
+
+.job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--neutral-soft);
+  color: var(--text-muted);
+
+  &[data-status='Running'] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  &[data-status='Completed'] {
+    background: var(--success-soft);
+    color: var(--success);
+  }
+
+  &[data-status='Failed'] {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+}
+
+.progress {
+  height: 10px;
+  background: var(--neutral-soft);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.4s ease;
+
+  .job[data-status='Completed'] & {
+    background: var(--success);
+  }
+
+  .job[data-status='Failed'] &,
+  .job[data-status='Cancelled'] & {
+    background: var(--text-muted);
+  }
+}
+
+.job-meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 0.9rem;
+
+  details {
+    flex-basis: 100%;
+  }
+
+  code {
+    display: block;
+    margin-top: 6px;
+    word-break: break-all;
+    color: var(--text-muted);
+  }
+}
+
+.secondary {
+  align-self: flex-start;
+}
+
+@media (max-width: 640px) {
+  .job-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.queue-info {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}

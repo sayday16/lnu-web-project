@@ -1,0 +1,25 @@
+x-compute-node: &compute-node
+  build: ./backend/LNU_ComputeNode
+  image: lnu-compute-node
+  cpus: 2
+  mem_limit: 1g
+  restart: unless-stopped
+
+services:
+  node-1:
+    <<: *compute-node
+    container_name: lnu-node-1
+    environment:
+      Node__Id: node-1
+      Node__MaxConcurrentJobs: 2
+    ports:
+      - "6001:8080"
+
+  node-2:
+    <<: *compute-node
+    container_name: lnu-node-2
+    environment:
+      Node__Id: node-2
+      Node__MaxConcurrentJobs: 2
+    ports:
+      - "6002:8080"

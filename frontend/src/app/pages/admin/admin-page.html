@@ -1,0 +1,141 @@
+<section class="card">
+  <div class="title-row">
+    <h2>Адмін-панель</h2>
+    @if (updatedAt(); as updated) {
+      <span class="muted">Оновлено {{ updated | date: 'HH:mm:ss' }}</span>
+    }
+  </div>
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+
+  @if (overview(); as data) {
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-value">{{ data.stats.reachableNodes }} / {{ data.stats.totalNodes }}</span>
+        <span class="stat-label">Вузли онлайн</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ data.stats.busySlots }} / {{ data.stats.totalSlots }}</span>
+        <span class="stat-label">Зайняті слоти</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ data.running.length }}</span>
+        <span class="stat-label">Виконується</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ data.queue.length }}</span>
+        <span class="stat-label">У черзі</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ data.stats.users }}</span>
+        <span class="stat-label">Користувачів</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ data.stats.jobsToday }}</span>
+        <span class="stat-label">
+          Задач сьогодні — готово: {{ data.stats.completedToday }} · з помилкою: {{ data.stats.failedToday }} ·
+          скасовано: {{ data.stats.cancelledToday }}
+        </span>
+      </div>
+    </div>
+  } @else if (!error()) {
+    <p class="hint">Завантаження…</p>
+  }
+</section>
+
+@if (overview(); as data) {
+  <section class="card">
+    <h2>Обчислювальні вузли</h2>
+    <div class="nodes">
+      @for (node of data.nodes; track node.id) {
+        <article class="node" [class.offline]="!node.reachable">
+          <header class="node-header">
+            <strong>{{ node.id }}</strong>
+            <span class="badge" [class.online]="node.reachable">{{ node.reachable ? 'Доступний' : 'Недоступний' }}</span>
+          </header>
+          <span class="muted">{{ node.url }}</span>
+          <div class="progress">
+            <div class="progress-fill" [style.width.%]="nodeLoadPercent(node.runningJobs, node.maxConcurrentJobs)"></div>
+          </div>
+          <span class="muted">
+            Навантаження: {{ node.runningJobs }} / {{ node.maxConcurrentJobs }} слотів
+            @if (node.lastSeenAt) {
+              · останній відгук {{ node.lastSeenAt | date: 'HH:mm:ss' }}
+            }
+          </span>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Виконуються ({{ data.running.length }})</h2>
+    @if (data.running.length > 0) {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Користувач</th>
+              <th>N</th>
+              <th>Вузол</th>
+              <th>Прогрес</th>
+              <th>Етап</th>
+              <th>Залишилось</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (job of data.running; track job.id) {
+              <tr>
+                <td>{{ job.email }}</td>
+                <td>{{ job.size }}</td>
+                <td>{{ job.nodeId }}</td>
+                <td>
+                  <div class="progress small">
+                    <div class="progress-fill" [style.width.%]="job.progress"></div>
+                  </div>
+                  {{ job.progress }}%
+                </td>
+                <td>{{ job.cancelRequested ? 'Скасування…' : stageLabel(job.stage) }}</td>
+                <td>{{ job.estimatedRemainingSeconds !== null ? '≈ ' + formatDuration(job.estimatedRemainingSeconds) : '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="hint">Зараз нічого не обчислюється.</p>
+    }
+  </section>
+
+  <section class="card">
+    <h2>Черга ({{ data.queue.length }})</h2>
+    @if (data.queue.length > 0) {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Користувач</th>
+              <th>N</th>
+              <th>Очікування</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (job of data.queue; track job.id) {
+              <tr>
+                <td>{{ job.position }}</td>
+                <td>{{ job.email }}</td>
+                <td>{{ job.size }}</td>
+                <td>{{ job.estimatedWaitSeconds !== null ? '≈ ' + formatDuration(job.estimatedWaitSeconds) : 'немає вузлів' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="hint">Черга порожня.</p>
+    }
+  </section>
+}
