@@ -16,14 +16,12 @@ namespace LNU_Web.Controllers
     public class JobsController : ControllerBase
     {
         private readonly AppDbContext _db;
-        private readonly JobSignal _signal;
         private readonly JobQueuePlanner _planner;
         private readonly JobLimitsOptions _limits;
 
-        public JobsController(AppDbContext db, JobSignal signal, JobQueuePlanner planner, IOptions<JobLimitsOptions> limits)
+        public JobsController(AppDbContext db, JobQueuePlanner planner, IOptions<JobLimitsOptions> limits)
         {
             _db = db;
-            _signal = signal;
             _planner = planner;
             _limits = limits.Value;
         }
@@ -116,8 +114,6 @@ namespace LNU_Web.Controllers
             _db.Jobs.Add(job);
             await _db.SaveChangesAsync();
 
-            _signal.Notify();
-
             await RemoveOldJobsAsync(userId);
 
             var snapshot = await _planner.BuildAsync(_db, HttpContext.RequestAborted);
@@ -158,8 +154,6 @@ namespace LNU_Web.Controllers
                         .SetProperty(j => j.CancelRequested, true)
                         .SetProperty(j => j.Stage, "Cancelling"));
             }
-
-            _signal.Notify();
 
             var job = await FindOwnJobAsync(id);
             if (job == null)

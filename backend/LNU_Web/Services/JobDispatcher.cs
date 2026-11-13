@@ -15,7 +15,6 @@ namespace LNU_Web.Services
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly NodeRegistry _nodes;
         private readonly NodeClient _client;
-        private readonly JobSignal _signal;
         private readonly JobQueuePlanner _planner;
         private readonly int _maxComputeSeconds;
         private readonly ILogger<JobDispatcher> _logger;
@@ -25,7 +24,6 @@ namespace LNU_Web.Services
             IServiceScopeFactory scopeFactory,
             NodeRegistry nodes,
             NodeClient client,
-            JobSignal signal,
             JobQueuePlanner planner,
             IOptions<JobLimitsOptions> limits,
             ILogger<JobDispatcher> logger)
@@ -33,7 +31,6 @@ namespace LNU_Web.Services
             _scopeFactory = scopeFactory;
             _nodes = nodes;
             _client = client;
-            _signal = signal;
             _planner = planner;
             _maxComputeSeconds = limits.Value.MaxComputeSeconds;
             _logger = logger;
@@ -56,7 +53,7 @@ namespace LNU_Web.Services
                     _logger.LogError(ex, "Job dispatching failed, retrying");
                 }
 
-                await _signal.WaitAsync(LoopInterval, stoppingToken);
+                await Task.Delay(LoopInterval, stoppingToken);
             }
         }
 

@@ -38,7 +38,6 @@ builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminO
 builder.Services.AddHttpClient(NodeClient.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(3));
 builder.Services.AddSingleton<NodeClient>();
 builder.Services.AddSingleton<NodeRegistry>();
-builder.Services.AddSingleton<JobSignal>();
 builder.Services.AddSingleton<JobQueuePlanner>();
 builder.Services.AddHostedService<NodeMonitor>();
 builder.Services.AddHostedService<JobDispatcher>();
